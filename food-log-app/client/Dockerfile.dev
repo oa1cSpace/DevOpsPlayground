@@ -1,0 +1,20 @@
+ARG NODE_VERSION=26-slim
+ARG PORT=3000
+
+FROM node:${NODE_VERSION} AS builder
+
+WORKDIR /app
+
+RUN chown node:node /app
+
+USER node
+
+COPY --chown=node:node client/package*.json ./
+
+RUN npm ci
+
+COPY --chown=node:node client/ ./
+
+EXPOSE ${PORT}
+
+CMD ["npm", "run", "start"]

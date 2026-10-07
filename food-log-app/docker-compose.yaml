@@ -1,0 +1,116 @@
+services:
+
+  db-dev:
+    image: postgres:18
+    container_name: "food-log-db-dev"
+    profiles: ["dev"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PORT: ${PORT}
+    volumes:
+      - pgdata-dev:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  server-dev:
+    build:
+      context: .
+      dockerfile: server/Dockerfile.dev
+    profiles: ["dev"]
+    container_name: "food-log-server-dev"
+    env_file: .env
+    ports:
+      - "5000:${SERVER_PORT}"
+    volumes:
+      - ./server:/app
+      - server_node_modules:/app/node_modules
+    depends_on:
+      db-dev:
+        condition: service_healthy
+    restart: unless-stopped
+
+  client-dev:
+    build:
+      context: .
+      dockerfile: client/Dockerfile.dev
+    profiles: ["dev"]
+    container_name: "food-log-client-dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./client:/app
+      - client_node_modules:/app/node_modules
+    depends_on:
+      - server-dev
+    restart: unless-stopped
+
+  adminer:
+    image: adminer
+    container_name: "food-log-adminer"
+    restart: always
+    ports:
+      - 8181:8080
+
+#####################
+## PRODUCTION SECTION
+#####################
+
+  db-prod:
+    image: postgres:18
+    container_name: "food-log-db-prod"
+    profiles: ["prod"]
+    env_file: .env
+    environment:
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PORT: ${PORT}
+    volumes:
+      - pgdata-prod:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  server-prod:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    profiles: ["prod"]
+    container_name: "food-log-server-prod"
+    env_file: .envs
+    depends_on:
+      db-prod:
+        condition: service_healthy
+    restart: unless-stopped
+
+  client-prod:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    profiles: ["prod"]
+    container_name: "food-log-client-prod"
+    ports:
+      - "3000:80"
+    depends_on:
+      - server-prod
+    restart: unless-stopped
+
+volumes:
+  pgdata-dev:
+  pgdata-prod:
+  client_node_modules:
+  server_node_modules:
